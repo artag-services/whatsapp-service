@@ -1,0 +1,446 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("WHATSAPP_DATABASE_URL")
+}
+
+// ─── Pre-existing tables (never drop) ────────────────────────────────────────
+
+model days_off {
+  id            Int     @id @default(autoincrement())
+  email         String?
+  vacation_days Int?    @db.SmallInt
+  sick_days     Int?    @db.SmallInt
+}
+
+model inventory {
+  id           Int     @id @default(autoincrement())
+  product_name String?
+  size         String?
+  in_stock     Int?
+}
+
+model n8n_vectors {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  text      String?
+  metadata  Json?
+  embedding Unsupported("vector")?
+}
+
+// ─── Gateway ──────────────────────────────────────────────────────────────────
+
+model Message {
+  id         String        @id @default(uuid())
+  channel    String
+  recipients String[]
+  body       String
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  status     MessageStatus @default(PENDING)
+
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ─── WhatsApp ─────────────────────────────────────────────────────────────────
+
+model WaMessage {
+  id            String          @id @default(uuid())
+  messageId     String          @unique
+  recipient     String
+  body          String
+  mediaUrl      String?
+  status        WaMessageStatus @default(PENDING)
+  waMessageId   String?
+  errorReason   String?
+  templateUsed  Boolean         @default(false)
+  sentAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// ─── Slack ────────────────────────────────────────────────────────────────────
+
+model SlackMessage {
+  id          String             @id @default(uuid())
+  messageId   String             @unique
+  recipient   String
+  body        String
+  mediaUrl    String?
+  status      SlackMessageStatus @default(PENDING)
+  slackMsgTs  String?
+  channel     String?
+  errorReason String?
+  sentAt      DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+// ─── Notion ───────────────────────────────────────────────────────────────────
+
+model NotionOperation {
+  id          String              @id @default(uuid())
+  messageId   String              @unique
+  operation   String
+  body        String
+  metadata    Json?
+  status      NotionOpStatus      @default(PENDING)
+  notionId    String?
+  errorReason String?
+  executedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+// ─── Instagram ────────────────────────────────────────────────────────────────
+
+model IgMessage {
+  id          String          @id @default(uuid())
+  messageId   String          @unique
+  recipient   String
+  body        String
+  mediaUrl    String?
+  status      IgMessageStatus @default(PENDING)
+  igMessageId String?
+  errorReason String?
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// ─── TikTok ───────────────────────────────────────────────────────────────────
+
+model TikTokPost {
+  id          String          @id @default(uuid())
+  messageId   String
+  recipient   String
+  caption     String
+  videoUrl    String
+  coverUrl    String?
+  status      TikTokPostStatus @default(PENDING)
+  publishId   String?
+  errorReason String?
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// ─── Facebook ─────────────────────────────────────────────────────────────────
+
+model FbMessage {
+  id          String          @id @default(uuid())
+  messageId   String          @unique
+  recipient   String
+  body        String
+  mediaUrl    String?
+  status      FbMessageStatus @default(PENDING)
+  fbMessageId String?
+  errorReason String?
+  sentAt      DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+
+model EmailMessage {
+  id          String        @id @default(uuid())
+  messageId   String        @unique
+  recipient   String
+  subject     String
+  body        String
+  status      EmailStatus   @default(PENDING)
+  resendMsgId String?
+  errorReason String?
+  sentAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// ─── Identity Service Models ──────────────────────────────────────────────────
+
+/// Central user profile that unifies identities across channels
+model User {
+  id        String   @id @default(uuid())
+  /// Real/canonical name of the user (updated based on trust scores)
+  realName  String?
+  /// List of all names/nicknames used by this user across channels
+  nicknames String[]
+  
+  /// Trust score for current real name (0.0-1.0)
+  nameTrustScore Float @default(0.5)
+  /// Source channel that provided the current real name
+  nameSource     String?
+  
+  /// Enable/disable AI responses for this user (default: true = opt-out model)
+  aiEnabled Boolean @default(true)
+  /// Timestamp of last AI setting change
+  aiEnabledAt DateTime?
+  
+  /// Soft delete timestamp
+  deletedAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  identities   UserIdentity[]
+  contacts     UserContact[]
+  nameHistory  NameHistory[]
+
+  @@index([realName])
+  @@index([aiEnabled])
+  @@index([deletedAt])
+  @@index([createdAt])
+}
+
+/// Channel-specific identity linked to a canonical user
+model UserIdentity {
+  id String @id @default(uuid())
+
+  /// User ID from the channel (e.g., phone number, Slack ID, Instagram ID)
+  channelUserId String
+  /// Channel name (whatsapp, instagram, slack, email, notion, facebook, tiktok)
+  channel       String
+
+  /// Display name as provided by the channel
+  displayName String?
+  /// Avatar/profile picture URL
+  avatarUrl   String?
+  /// Additional metadata from channel
+  metadata    Json?
+
+  /// Confidence score of this identity (0.0-1.0, based on channel verification)
+  trustScore Float @default(0.5)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign key
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelUserId, channel])
+  @@index([userId])
+  @@index([channel])
+  @@index([trustScore])
+}
+
+/// Contact information (phone, email, username) for identity resolution
+model UserContact {
+  id String @id @default(uuid())
+
+  /// Type of contact (phone, email, username)
+  type  String
+  /// Contact value (phone number, email address, username handle)
+  value String
+
+  /// Confidence score for this contact (0.0-1.0)
+  trustScore Float @default(0.5)
+  /// Channel that provided this contact
+  source     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign key
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, value])
+  @@index([userId])
+  @@index([type, value])
+  @@index([trustScore])
+}
+
+/// Audit log for name changes
+model NameHistory {
+  id String @id @default(uuid())
+
+  /// Previous name
+  previousName String?
+  /// New name
+  newName      String?
+  /// Reason for change
+  reason       String?
+  /// Channel that triggered the change
+  source       String?
+  /// Trust score at time of change
+  trustScore   Float @default(0.5)
+
+  createdAt DateTime @default(now())
+
+  // Foreign key
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+  PARTIAL
+}
+
+enum WaMessageStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+  READ
+}
+
+enum SlackMessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum NotionOpStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum IgMessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum TikTokPostStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum FbMessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ─── AI Response System (Auditoría y Manejo de Respuestas) ──────────────────
+
+/// Principal record de auditoría para respuestas de IA
+model AIResponse {
+  id              String            @id @default(uuid())
+  
+  /// Usuario que recibe la respuesta
+  userId          String
+  /// Número WhatsApp del usuario
+  senderId        String
+  /// ID del mensaje que triggeró la respuesta de IA
+  messageId       String
+  /// Mensaje original del usuario
+  originalMessage String
+  /// Respuesta completa de N8N (sin dividir)
+  aiResponse      String
+  
+  /// Chunks individuales del mensaje
+  chunks          AIResponseChunk[]
+  
+  /// Metadata de N8N
+  model           String?
+  confidence      Float?
+  processingTime  Int?              // en millisegundos
+  
+  /// Estado de la respuesta
+  status          AIResponseStatus  @default(PENDING)
+  /// Cantidad de chunks enviados exitosamente
+  sentChunks      Int               @default(0)
+  /// Razón del fallo si aplica
+  failureReason   String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+/// Chunks individuales de un AIResponse (cada uno es un mensaje que se envía a través de cualquier canal)
+model AIResponseChunk {
+  id              String            @id @default(uuid())
+  
+  /// Referencia al AIResponse padre
+  aiResponseId    String
+  aiResponse      AIResponse        @relation(fields: [aiResponseId], references: [id], onDelete: Cascade)
+  
+  /// Número del chunk (1, 2, 3, etc.)
+  chunkNumber     Int
+  /// Contenido del chunk (máximo 4096 caracteres)
+  content         String
+  
+  /// ID retornado por la plataforma cuando se envía (unified across channels)
+  /// For WhatsApp: message ID from WhatsApp API
+  /// For Instagram: message_id from Instagram API
+  externalMessageId String?
+  /// Canal por el que se envió el chunk (whatsapp, instagram, slack, etc.)
+  channel         String?
+  
+  /// Estado del chunk
+  status          ChunkStatus       @default(PENDING)
+  /// Cantidad de reintentos realizados (máx 3)
+  retryCount      Int               @default(0)
+  /// Timestamp cuando se envió exitosamente
+  sentAt          DateTime?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([aiResponseId])
+  @@index([status])
+}
+
+/// Rate limiting para llamadas a N8N (máx 20/día por usuario)
+model N8NRateLimit {
+  id              String            @id @default(uuid())
+  
+  /// Usuario
+  userId          String            @unique
+  /// Cantidad de llamadas hoy
+  callsToday      Int               @default(0)
+  /// Timestamp cuando se resetea (mañana a las 00:00 UTC)
+  resetAt         DateTime
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  @@index([userId])
+  @@index([resetAt])
+}
+
+// ─── Enums para AI Response ───────────────────────────────────────────────
+
+enum AIResponseStatus {
+  PENDING       // Esperando ser procesado
+  SENT          // Todos los chunks fueron enviados
+  PARTIAL       // Algunos chunks se enviaron, otros fallaron
+  FAILED        // Fallo completo, no se envió nada
+}
+
+enum ChunkStatus {
+  PENDING       // Esperando ser enviado
+  SENT          // Enviado exitosamente a WhatsApp
+  FAILED        // Falló el envío
+}
