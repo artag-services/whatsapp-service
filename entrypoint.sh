@@ -29,7 +29,7 @@ echo -e "${YELLOW}[INFO]${NC} PostgreSQL Host: $POSTGRES_HOST:$POSTGRES_PORT"
 echo -e "\n${YELLOW}[STEP 1/3]${NC} Waiting for PostgreSQL to be ready..."
 
 MAX_ATTEMPTS=0
-until PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "postgres" -c '\q' 2>/dev/null; do
+until nc -zv "$POSTGRES_HOST" "$POSTGRES_PORT" >/dev/null 2>&1; do
   MAX_ATTEMPTS=$((MAX_ATTEMPTS + 1))
   
   if [ $MAX_ATTEMPTS -eq 5 ]; then
