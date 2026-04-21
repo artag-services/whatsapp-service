@@ -190,7 +190,55 @@ export class WhatsappListener implements OnModuleInit {
 
         this.logger.log(`📨 Incoming message from ${senderId} (${senderName})`);
 
-        // Publicar evento de resolución de identidad
+        // Save incoming message to conversation
+        try {
+          const conversation = await this.prisma.conversation.findFirst({
+            where: {
+              channelUserId: senderId,
+              channel: 'whatsapp',
+              status: 'ACTIVE',
+            },
+          });
+
+          if (conversation) {
+            await this.prisma.conversationMessage.create({
+              data: {
+                conversationId: conversation.id,
+                sender: 'USER',
+                content: messageText,
+                mediaUrl: null,
+                externalId: messageId,
+                metadata: {
+                  senderName,
+                  timestamp,
+                },
+              },
+            });
+
+            // Update conversation counters
+            await this.prisma.conversation.update({
+              where: { id: conversation.id },
+              data: {
+                messageCount: { increment: 1 },
+                lastMessageAt: new Date(),
+              },
+            });
+
+            this.logger.debug(
+              `✅ ConversationMessage saved for conversation ${conversation.id}`,
+            );
+          } else {
+            this.logger.warn(
+              `No ACTIVE conversation found for senderId ${senderId}. Message not saved to conversation.`,
+            );
+          }
+        } catch (error) {
+          this.logger.error(
+            `Failed to save ConversationMessage: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+
+         // Publicar evento de resolución de identidad
         try {
           await this.rabbitmq.publish(IDENTITY_RESOLVE_ROUTING_KEY, {
             channel: 'whatsapp',
