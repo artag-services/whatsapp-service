@@ -261,13 +261,24 @@ export class WhatsappListener implements OnModuleInit {
       // Try cache first, then database
       let conversation = this.conversationCache.get(senderId);
       if (!conversation) {
-        conversation = await this.prisma.conversation.findFirst({
+        const dbConversation = await this.prisma.conversation.findFirst({
           where: {
             channelUserId: senderId,
             channel: 'whatsapp',
             status: 'ACTIVE',
           },
         });
+        if (dbConversation) {
+          conversation = {
+            id: dbConversation.id,
+            channelUserId: dbConversation.channelUserId,
+            topic: dbConversation.topic,
+            aiEnabled: dbConversation.aiEnabled,
+            userId: dbConversation.userId,
+            status: dbConversation.status,
+            agentAssigned: dbConversation.agentAssigned,
+          };
+        }
       }
 
       // If no conversation yet (shouldn't happen with conversation.incoming event),

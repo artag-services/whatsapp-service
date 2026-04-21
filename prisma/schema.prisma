@@ -101,15 +101,16 @@ model AIResponseChunk {
 }
 
 model N8NRateLimit {
-  id         String   @id @default(uuid())
-  userId     String   @unique
-  callsToday Int      @default(0)
-  resetAt    DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(uuid())
+  userId    String   // From Identity.User
+  service   String   // "whatsapp", "instagram", etc
+  date      DateTime @default(now()) // Daily bucket
+  callCount Int      @default(0)
+  maxCalls  Int      @default(20)
 
+  @@unique([userId, service, date])
   @@index([userId])
-  @@index([resetAt])
+  @@index([date])
 }
 
 enum WaMessageStatus {

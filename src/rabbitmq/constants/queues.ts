@@ -21,6 +21,12 @@ export const ROUTING_KEYS = {
   WHATSAPP_PHONE_NUMBER_UPDATE: 'channels.whatsapp.events.phone_number_update',
   WHATSAPP_TEMPLATE_UPDATE: 'channels.whatsapp.events.template_update',
   WHATSAPP_ALERTS_RECEIVED: 'channels.whatsapp.events.alerts',
+
+  // Conversation Rooms System
+  CONVERSATION_INCOMING: 'channels.conversation.incoming',
+  CONVERSATION_CREATED: 'channels.conversation.created',
+  CONVERSATION_AI_TOGGLE: 'channels.conversation.ai-toggle',
+  CONVERSATION_AGENT_ASSIGN: 'channels.conversation.agent-assign',
 } as const;
 
 export const QUEUES = {
@@ -39,6 +45,12 @@ export const QUEUES = {
   WHATSAPP_AI_RESPONSE: 'whatsapp.ai-response',
   WHATSAPP_AI_RESPONSE_CHUNK_FAILED: 'whatsapp.ai-response-chunk-failed',
   WHATSAPP_AI_RESPONSE_DLQ: 'whatsapp.ai-response-dlq',
+
+  // Conversation Queues
+  CONVERSATION_INCOMING: 'whatsapp.conversation.incoming',
+  CONVERSATION_CREATED: 'whatsapp.conversation.created',
+  CONVERSATION_AI_TOGGLE: 'whatsapp.conversation.ai-toggle',
+  CONVERSATION_AGENT_ASSIGN: 'whatsapp.conversation.agent-assign',
 
   GATEWAY_RESPONSES: 'gateway.responses',
 } as const;

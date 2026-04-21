@@ -82,6 +82,7 @@ export class ConversationListener {
         aiEnabled: true,
         userId: null,
         status: 'ACTIVE',
+        agentAssigned: null,
       };
       this.cache.set(channelUserId, cachedConv);
 

@@ -283,55 +283,60 @@ export class AIResponseService {
   }
 
   /**
-   * Verificar y actualizar rate limit diario
+   * Verificar y actualizar rate limit diario (20 calls/day per user per service)
    */
   async checkDailyRateLimit(userId: string): Promise<boolean> {
     const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setUTCHours(0, 0, 0, 0);
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const dateKey = new Date(now);
+    dateKey.setUTCHours(0, 0, 0, 0);
 
-    // Obtener o crear registro de rate limit
+    // Format date as YYYY-MM-DD for composite key
+    const dateString = dateKey.toISOString().split('T')[0];
+    const service = 'n8n';
+
+    // Obtener o crear registro de rate limit usando composite key (userId, service, date)
     let rateLimit = await this.prisma.n8NRateLimit.findUnique({
-      where: { userId },
+      where: {
+        userId_service_date: {
+          userId,
+          service,
+          date: dateString,
+        },
+      },
     });
 
     if (!rateLimit) {
       rateLimit = await this.prisma.n8NRateLimit.create({
         data: {
           userId,
-          callsToday: 0,
-          resetAt: tomorrow,
-        },
-      });
-    }
-
-    // Si pasó la fecha de reset, resetear contador
-    if (now > rateLimit.resetAt) {
-      rateLimit = await this.prisma.n8NRateLimit.update({
-        where: { userId },
-        data: {
-          callsToday: 0,
-          resetAt: tomorrow,
+          service,
+          date: dateString,
+          callCount: 0,
         },
       });
     }
 
     // Verificar si llegó al límite (20/día)
     const limit = 20;
-    const hasCapacity = rateLimit.callsToday < limit;
+    const hasCapacity = rateLimit.callCount < limit;
 
     if (hasCapacity) {
       // Incrementar contador
       await this.prisma.n8NRateLimit.update({
-        where: { userId },
+        where: {
+          userId_service_date: {
+            userId,
+            service,
+            date: dateString,
+          },
+        },
         data: {
-          callsToday: rateLimit.callsToday + 1,
+          callCount: rateLimit.callCount + 1,
         },
       });
     } else {
       this.logger.warn(
-        `User ${userId} exceeded daily N8N limit (${rateLimit.callsToday}/${limit})`,
+        `User ${userId} exceeded daily N8N limit (${rateLimit.callCount}/${limit})`,
       );
     }
 
@@ -342,8 +347,19 @@ export class AIResponseService {
    * Obtener información de uso de rate limit (para API)
    */
   async getRateLimitInfo(userId: string) {
+    const dateKey = new Date();
+    dateKey.setUTCHours(0, 0, 0, 0);
+    const dateString = dateKey.toISOString().split('T')[0];
+    const service = 'n8n';
+
     const rateLimit = await this.prisma.n8NRateLimit.findUnique({
-      where: { userId },
+      where: {
+        userId_service_date: {
+          userId,
+          service,
+          date: dateString,
+        },
+      },
     });
 
     if (!rateLimit) {
@@ -351,15 +367,17 @@ export class AIResponseService {
         callsToday: 0,
         limit: 20,
         remaining: 20,
-        resetAt: new Date(),
+        resetAt: new Date(dateKey.getTime() + 24 * 60 * 60 * 1000),
       };
     }
 
+    const tomorrow = new Date(dateKey.getTime() + 24 * 60 * 60 * 1000);
+
     return {
-      callsToday: rateLimit.callsToday,
+      callsToday: rateLimit.callCount,
       limit: 20,
-      remaining: Math.max(0, 20 - rateLimit.callsToday),
-      resetAt: rateLimit.resetAt,
+      remaining: Math.max(0, 20 - rateLimit.callCount),
+      resetAt: tomorrow,
     };
   }
 }

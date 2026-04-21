@@ -12,8 +12,9 @@ import { Injectable, Logger } from '@nestjs/common';
 export interface CachedConversation {
   id: string;
   channelUserId: string;
-  topic: string;
+  topic: string | null;
   aiEnabled: boolean;
+  agentAssigned: string | null;
   userId: string | null;
   status: string;
 }

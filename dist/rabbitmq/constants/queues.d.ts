@@ -1,0 +1,37 @@
+export declare const RABBITMQ_EXCHANGE = "channels";
+export declare const ROUTING_KEYS: {
+    readonly WHATSAPP_SEND: "channels.whatsapp.send";
+    readonly WHATSAPP_RESPONSE: "channels.whatsapp.response";
+    readonly WHATSAPP_AI_RESPONSE: "channels.whatsapp.ai-response";
+    readonly WHATSAPP_AI_RESPONSE_CHUNK_FAILED: "channels.whatsapp.ai-response-chunk-failed";
+    readonly WHATSAPP_AI_RESPONSE_DLQ: "channels.whatsapp.ai-response-dlq";
+    readonly WHATSAPP_MESSAGE_RECEIVED: "channels.whatsapp.events.message";
+    readonly WHATSAPP_MESSAGE_ECHO_RECEIVED: "channels.whatsapp.events.message_echo";
+    readonly WHATSAPP_CALLS_RECEIVED: "channels.whatsapp.events.calls";
+    readonly WHATSAPP_FLOWS_RECEIVED: "channels.whatsapp.events.flows";
+    readonly WHATSAPP_PHONE_NUMBER_UPDATE: "channels.whatsapp.events.phone_number_update";
+    readonly WHATSAPP_TEMPLATE_UPDATE: "channels.whatsapp.events.template_update";
+    readonly WHATSAPP_ALERTS_RECEIVED: "channels.whatsapp.events.alerts";
+    readonly CONVERSATION_INCOMING: "channels.conversation.incoming";
+    readonly CONVERSATION_CREATED: "channels.conversation.created";
+    readonly CONVERSATION_AI_TOGGLE: "channels.conversation.ai-toggle";
+    readonly CONVERSATION_AGENT_ASSIGN: "channels.conversation.agent-assign";
+};
+export declare const QUEUES: {
+    readonly WHATSAPP_SEND: "whatsapp.send";
+    readonly WHATSAPP_EVENTS_MESSAGE: "whatsapp.events.message";
+    readonly WHATSAPP_EVENTS_MESSAGE_ECHO: "whatsapp.events.message_echo";
+    readonly WHATSAPP_EVENTS_CALLS: "whatsapp.events.calls";
+    readonly WHATSAPP_EVENTS_FLOWS: "whatsapp.events.flows";
+    readonly WHATSAPP_EVENTS_PHONE_NUMBER_UPDATE: "whatsapp.events.phone_number_update";
+    readonly WHATSAPP_EVENTS_TEMPLATE_UPDATE: "whatsapp.events.template_update";
+    readonly WHATSAPP_EVENTS_ALERTS: "whatsapp.events.alerts";
+    readonly WHATSAPP_AI_RESPONSE: "whatsapp.ai-response";
+    readonly WHATSAPP_AI_RESPONSE_CHUNK_FAILED: "whatsapp.ai-response-chunk-failed";
+    readonly WHATSAPP_AI_RESPONSE_DLQ: "whatsapp.ai-response-dlq";
+    readonly CONVERSATION_INCOMING: "whatsapp.conversation.incoming";
+    readonly CONVERSATION_CREATED: "whatsapp.conversation.created";
+    readonly CONVERSATION_AI_TOGGLE: "whatsapp.conversation.ai-toggle";
+    readonly CONVERSATION_AGENT_ASSIGN: "whatsapp.conversation.agent-assign";
+    readonly GATEWAY_RESPONSES: "gateway.responses";
+};
