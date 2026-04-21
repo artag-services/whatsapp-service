@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { RabbitMQModule } from './rabbitmq/rabbitmq.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
+import { ConversationsModule } from './conversations/conversations.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { WhatsappModule } from './whatsapp/whatsapp.module';
     PrismaModule,
     RabbitMQModule,
     WhatsappModule,
+    ConversationsModule,
   ],
 })
 export class AppModule {}

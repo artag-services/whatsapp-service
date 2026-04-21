@@ -5,6 +5,7 @@ import { AIResponseService } from './services/ai-response.service';
 import { ROUTING_KEYS, QUEUES } from '../rabbitmq/constants/queues';
 import { SendWhatsappDto } from './dto/send-whatsapp.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { ConversationCacheService } from '../conversations/conversation-cache.service';
 
 // Identity service routing keys
 const IDENTITY_RESOLVE_ROUTING_KEY = 'channels.identity.resolve';
@@ -18,6 +19,7 @@ export class WhatsappListener implements OnModuleInit {
     private readonly whatsapp: WhatsappService,
     private readonly aiResponseService: AIResponseService,
     private readonly prisma: PrismaService,
+    private readonly conversationCache: ConversationCacheService,
   ) {}
 
   async onModuleInit() {
@@ -225,6 +227,7 @@ export class WhatsappListener implements OnModuleInit {
 
   /**
    * Process AI response for incoming message
+   * NEW: Checks conversation.aiEnabled instead of just user.aiEnabled
    * Checks if user has AI enabled, rate limit, then calls N8N webhook
    */
   private async processAIResponse(
@@ -254,24 +257,72 @@ export class WhatsappListener implements OnModuleInit {
 
       const user = userIdentity.user;
 
-      // Check if AI is enabled for this user
-      if (!user.aiEnabled) {
-        this.logger.debug(`AI disabled for user ${user.id}, skipping N8N webhook`);
-        return;
+      // NEW: Check if conversation exists and has AI enabled
+      // Try cache first, then database
+      let conversation = this.conversationCache.get(senderId);
+      if (!conversation) {
+        conversation = await this.prisma.conversation.findFirst({
+          where: {
+            channelUserId: senderId,
+            channel: 'whatsapp',
+            status: 'ACTIVE',
+          },
+        });
       }
 
-      // Check daily rate limit (20 calls/day per user)
-      const hasCapacity = await this.aiResponseService.checkDailyRateLimit(user.id);
-      if (!hasCapacity) {
+      // If no conversation yet (shouldn't happen with conversation.incoming event),
+      // check user's global AI setting
+      if (!conversation) {
+        if (!user.aiEnabled) {
+          this.logger.debug(`AI disabled globally for user ${user.id}, skipping N8N webhook`);
+          return;
+        }
+      } else {
+        // NEW: Check conversation-level AI setting
+        if (!conversation.aiEnabled) {
+          this.logger.debug(
+            `AI disabled for conversation ${conversation.id} (agent assigned or manually disabled)`,
+          );
+          return;
+        }
+
+        // Also check if agent is assigned
+        if (conversation.agentAssigned) {
+          this.logger.debug(
+            `Agent ${conversation.agentAssigned} assigned to conversation ${conversation.id}, skipping AI`,
+          );
+          return;
+        }
+      }
+
+      // Check daily rate limit (20 calls/day per user per service)
+      // NEW: Use service-based rate limiting
+      // NOTE: All timestamps are treated as UTC. Date boundaries are midnight UTC.
+      // For user-friendly timezone-aware date resets, implement timezone conversion in future.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const rateLimit = await this.prisma.n8NRateLimit.findUnique({
+        where: {
+          userId_service_date: {
+            userId: user.id,
+            service: 'whatsapp',
+            date: today,
+          },
+        },
+      });
+
+      const callsToday = rateLimit?.callCount || 0;
+      if (callsToday >= 20) {
         this.logger.warn(
-          `User ${user.id} exceeded daily AI rate limit (20/day). Skipping N8N webhook.`,
+          `User ${user.id} exceeded daily AI rate limit (WhatsApp): ${callsToday}/20`,
         );
-        // Opcionalmente, enviar mensaje al usuario informando del límite
-        // await this.whatsapp.sendToOneWithId(messageId, senderId, "You've reached your daily AI limit. Please try again tomorrow.");
         return;
       }
 
-      this.logger.debug(`AI enabled for user ${user.id}, rate limit OK. Calling N8N webhook`);
+      this.logger.debug(
+        `AI enabled for conversation, rate limit OK (${callsToday}/20). Calling N8N webhook`,
+      );
 
       // Call N8N webhook to generate AI response
       const n8nResponse = await this.whatsapp.callN8NWebhook(
@@ -287,12 +338,30 @@ export class WhatsappListener implements OnModuleInit {
         return;
       }
 
+      // Increment rate limit counter
+      if (rateLimit) {
+        await this.prisma.n8NRateLimit.update({
+          where: {id: rateLimit.id},
+          data: {callCount: rateLimit.callCount + 1},
+        });
+      } else {
+        await this.prisma.n8NRateLimit.create({
+          data: {
+            userId: user.id,
+            service: 'whatsapp',
+            date: today,
+            callCount: 1,
+          },
+        });
+      }
+
       // N8N returned a valid response with aiResponse text
       // Publish AI response event for further processing
       await this.rabbitmq.publish(ROUTING_KEYS.WHATSAPP_AI_RESPONSE, {
         userId: user.id,
         senderId,
         messageId,
+        conversationId: conversation?.id, // NEW: Include conversation ID
         aiResponse: n8nResponse.aiResponse || 'No AI response generated',
         confidence: n8nResponse.confidence || 0,
         model: n8nResponse.model || 'unknown',

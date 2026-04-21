@@ -63,7 +63,7 @@ fi
 echo -e "\n${YELLOW}[STEP 3/3]${NC} Running database migrations..."
 
 if [ -f "prisma/schema.prisma" ]; then
-  if pnpm prisma:migrate deploy 2>&1 | sed 's/^/  /'; then
+  if pnpm prisma:migrate 2>&1 | sed 's/^/  /'; then
     echo -e "${GREEN}✅ Database migrations completed successfully!${NC}"
   else
     echo -e "${RED}⚠️  Migration encountered issues (continuing anyway)${NC}"
