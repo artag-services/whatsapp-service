@@ -12,11 +12,14 @@ interface ConversationIncomingPayload {
   messageText: string;
   messageId: string;
   timestamp: string;
+  mediaUrl?: string;
+  mediaType?: string;
 }
 
 /**
  * Listens for conversation.incoming events from the Gateway
  * Creates new Conversation records and publishes conversation.created events
+ * Also saves the first incoming message to ConversationMessage
  */
 @Injectable()
 export class ConversationListener {
@@ -31,7 +34,7 @@ export class ConversationListener {
 
   /**
    * Handle incoming conversation event
-   * Only processes WhatsApp messages (other channels will implement similar listeners)
+   * Creates or updates Conversation and saves the first message
    */
   @RabbitSubscribe({
     exchange: 'channels',
@@ -50,15 +53,39 @@ export class ConversationListener {
         `Processing conversation incoming from user: ${payload.channelUserId}`
       );
 
-      const {channel, channelUserId, messageText, messageId} = payload;
+      const { channel, channelUserId, messageText, messageId, timestamp, mediaUrl } = payload;
+
+      // ✅ TAREA 2: Parse timestamp from Unix timestamp (string) to Date
+      let messageTimestamp: Date;
+      try {
+        const unixTimestamp = parseInt(timestamp, 10);
+        messageTimestamp = new Date(unixTimestamp * 1000);
+      } catch (error) {
+        this.logger.warn(`Invalid timestamp: ${timestamp}, using current time`);
+        messageTimestamp = new Date();
+      }
 
       // 1. Detect topic from message text
       const topic = this.topicDetection.detectTopic(messageText);
       const keywords = this.topicDetection.extractKeywords(messageText, topic);
 
-      // 2. Create conversation in database
-      const conversation = await this.prisma.conversation.create({
-        data: {
+      // ✅ TAREA 5: Use upsert to avoid duplicate conversations
+      const conversation = await this.prisma.conversation.upsert({
+        where: {
+          channelUserId_channel_status: {
+            channelUserId,
+            channel,
+            status: 'ACTIVE',
+          },
+        },
+        update: {
+          // If conversation exists, just update counters and timestamp
+          messageCount: { increment: 1 },
+          lastMessageAt: messageTimestamp,
+          updatedAt: new Date(),
+        },
+        create: {
+          // If conversation doesn't exist, create it
           userId: null, // Will be updated when Identity resolves
           channelUserId,
           channel,
@@ -67,14 +94,44 @@ export class ConversationListener {
           keywords,
           aiEnabled: true,
           status: 'ACTIVE',
-          messageCount: 0,
+          messageCount: 1, // Count the first message
           aiMessageCount: 0,
+          lastMessageAt: messageTimestamp,
         },
       });
 
-      this.logger.log(`✅ Conversation created: ${conversation.id} | Topic: ${topic}`);
+      this.logger.log(
+        `✅ Conversation ${conversation.id ? 'created' : 'updated'}: ${conversation.id} | Topic: ${topic}`
+      );
 
-      // 3. Update in-memory cache
+      // ✅ TAREA 1 & 3: Save the incoming message to ConversationMessage
+      try {
+        await this.prisma.conversationMessage.create({
+          data: {
+            conversationId: conversation.id,
+            sender: 'USER',
+            content: messageText,
+            mediaUrl: mediaUrl || null,
+            externalId: messageId,
+            metadata: {
+              channelUserId,
+              unixTimestamp: parseInt(timestamp, 10),
+              mediaType: payload.mediaType || null,
+            },
+          },
+        });
+
+        this.logger.debug(
+          `✅ ConversationMessage saved for conversation ${conversation.id} | mediaUrl: ${mediaUrl || 'none'}`
+        );
+      } catch (msgError) {
+        this.logger.error(
+          `Failed to save ConversationMessage: ${msgError instanceof Error ? msgError.message : msgError}`
+        );
+        // Don't throw - conversation was created, only message failed
+      }
+
+      // 2. Update in-memory cache
       const cachedConv: CachedConversation = {
         id: conversation.id,
         channelUserId,
@@ -86,7 +143,7 @@ export class ConversationListener {
       };
       this.cache.set(channelUserId, cachedConv);
 
-      // 4. Publish conversation.created event for other services
+      // 3. Publish conversation.created event for other services
       await this.rabbitmq.publish(ROUTING_KEYS.CONVERSATION_CREATED, {
         conversationId: conversation.id,
         channel,
@@ -94,7 +151,8 @@ export class ConversationListener {
         topic,
         aiEnabled: true,
         messageId,
-        createdAt: new Date().toISOString(),
+        timestamp: messageTimestamp.toISOString(),
+        createdAt: conversation.createdAt.toISOString(),
       } as unknown as Record<string, unknown>);
 
       this.logger.log(
