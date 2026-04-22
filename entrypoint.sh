@@ -58,9 +58,26 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
-# STEP 3: Run Database Migrations
+# STEP 3: Clean Migration History (for fresh schema application)
 # ─────────────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[STEP 3/3]${NC} Running database migrations..."
+echo -e "\n${YELLOW}[STEP 3a/3]${NC} Cleaning up migration history..."
+
+if [ -f "prisma/schema.prisma" ]; then
+  # Extract database URL to get DB name
+  DB_URL="${WHATSAPP_DATABASE_URL:-${DATABASE_URL}}"
+  if [ -n "$DB_URL" ]; then
+    # Clean migration history to allow fresh schema application
+    psql "$DB_URL" -c "DELETE FROM _prisma_migrations;" 2>/dev/null || true
+    echo -e "${BLUE}  ℹ️  Migration history cleared (allows fresh schema application)${NC}"
+  fi
+else
+  echo -e "${BLUE}  ℹ️  No Prisma schema found (skipping migration cleanup)${NC}"
+fi
+
+# ─────────────────────────────────────────────────────────────────
+# STEP 4: Run Database Migrations
+# ─────────────────────────────────────────────────────────────────
+echo -e "\n${YELLOW}[STEP 3b/3]${NC} Running database migrations..."
 
 if [ -f "prisma/schema.prisma" ]; then
   if pnpm prisma:migrate 2>&1 | sed 's/^/  /'; then
@@ -75,7 +92,7 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
-# STEP 4: Start Application
+# STEP 5: Start Application
 # ─────────────────────────────────────────────────────────────────
 echo -e "\n${BLUE}═══════════════════════════════════════════════════════${NC}"
 echo -e "${GREEN}🚀 All initialization steps completed!${NC}"
