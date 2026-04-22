@@ -66,7 +66,9 @@ if [ -f "prisma/schema.prisma" ]; then
   if pnpm prisma:migrate 2>&1 | sed 's/^/  /'; then
     echo -e "${GREEN}✅ Database migrations completed successfully!${NC}"
   else
-    echo -e "${RED}⚠️  Migration encountered issues (continuing anyway)${NC}"
+    echo -e "${RED}❌ CRITICAL: Database migrations failed!${NC}"
+    echo -e "${RED}Service cannot start without synchronized database schema.${NC}"
+    exit 1
   fi
 else
   echo -e "${BLUE}ℹ️  No Prisma schema found (skipping migrations)${NC}"
