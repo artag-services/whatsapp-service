@@ -11,6 +11,7 @@
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
+    "prisma:push": "prisma db push --accept-data-loss --skip-generate",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
