@@ -77,18 +77,18 @@ fi
 # ─────────────────────────────────────────────────────────────────
 # STEP 4: Run Database Migrations
 # ─────────────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[STEP 3b/3]${NC} Running database migrations..."
+echo -e "\n${YELLOW}[STEP 3b/3]${NC} Syncing database schema (prisma db push)..."
 
 if [ -f "prisma/schema.prisma" ]; then
-  if pnpm prisma:migrate 2>&1 | sed 's/^/  /'; then
-    echo -e "${GREEN}✅ Database migrations completed successfully!${NC}"
+  if pnpm prisma:push 2>&1 | sed 's/^/  /'; then
+    echo -e "${GREEN}✅ Database schema is in sync with schema.prisma!${NC}"
   else
-    echo -e "${RED}❌ CRITICAL: Database migrations failed!${NC}"
+    echo -e "${RED}❌ CRITICAL: Database schema sync failed!${NC}"
     echo -e "${RED}Service cannot start without synchronized database schema.${NC}"
     exit 1
   fi
 else
-  echo -e "${BLUE}ℹ️  No Prisma schema found (skipping migrations)${NC}"
+  echo -e "${BLUE}ℹ️  No Prisma schema found (skipping schema sync)${NC}"
 fi
 
 # ─────────────────────────────────────────────────────────────────
