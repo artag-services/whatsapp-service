@@ -16,6 +16,9 @@ async function bootstrap() {
 
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  // Graceful shutdown: closes RabbitMQ connections, Prisma client, etc. on SIGTERM/SIGINT
+  app.enableShutdownHooks();
+
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
 
