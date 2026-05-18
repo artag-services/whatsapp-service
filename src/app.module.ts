@@ -4,6 +4,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RabbitMQModule } from './rabbitmq/rabbitmq.module';
 import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { ConversationsModule } from './conversations/conversations.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { ConversationsModule } from './conversations/conversations.module';
     RabbitMQModule,
     WhatsappModule,
     ConversationsModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
