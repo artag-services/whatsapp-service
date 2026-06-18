@@ -12,6 +12,7 @@ import { N8nClient } from './whatsapp/clients/n8n.client'
 import { PrismaMessageRepository } from './infrastructure/persistence/prisma-message.repository'
 import { PrismaConversationRepository } from './infrastructure/persistence/prisma-conversation.repository'
 import { PrismaRateLimitRepository } from './infrastructure/persistence/prisma-rate-limit.repository'
+import { PrismaUserIdentityRepository } from './infrastructure/persistence/prisma-user-identity.repository'
 import { MetaApiSender } from './infrastructure/messaging/meta-api.sender'
 import { N8nAIService } from './infrastructure/messaging/n8n-ai.service'
 import { InMemoryConversationCache } from './infrastructure/cache/in-memory-conversation-cache'
@@ -50,6 +51,7 @@ import { ConversationConsumer } from './application/consumers/conversation-consu
     { provide: 'IAIService', useClass: N8nAIService },
     { provide: 'ICacheService', useClass: InMemoryConversationCache },
     { provide: 'IEventPublisher', useClass: RabbitMQEventPublisher },
+    { provide: 'IUserIdentityRepository', useClass: PrismaUserIdentityRepository },
 
     // Use cases — constructed via factory to keep them decorator-free
     {
@@ -59,9 +61,9 @@ import { ConversationConsumer } from './application/consumers/conversation-consu
     },
     {
       provide: ProcessAIUseCase,
-      useFactory: (cache, convRepo, ai, rateLimiter, eventBus) =>
-        new ProcessAIUseCase(cache, convRepo, ai, rateLimiter, eventBus),
-      inject: ['ICacheService', 'IConversationRepository', 'IAIService', 'IRateLimitService', 'IEventPublisher'],
+      useFactory: (cache, convRepo, identityRepo, ai, rateLimiter, eventBus) =>
+        new ProcessAIUseCase(cache, convRepo, identityRepo, ai, rateLimiter, eventBus),
+      inject: ['ICacheService', 'IConversationRepository', 'IUserIdentityRepository', 'IAIService', 'IRateLimitService', 'IEventPublisher'],
     },
     {
       provide: ManageConversationUseCase,

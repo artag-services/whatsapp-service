@@ -3,6 +3,7 @@ import { ICacheService } from '../ports/ICacheService'
 import { IConversationRepository } from '../ports/IConversationRepository'
 import { IRateLimitService } from '../ports/IRateLimitService'
 import { IEventPublisher } from '../ports/IEventPublisher'
+import { IUserIdentityRepository } from '../ports/IUserIdentityRepository'
 
 export interface AIProcessInput {
   senderId: string
@@ -18,6 +19,7 @@ export class ProcessAIUseCase {
   constructor(
     private readonly cache: ICacheService,
     private readonly conversationRepo: IConversationRepository,
+    private readonly identityRepo: IUserIdentityRepository,
     private readonly aiService: IAIService,
     private readonly rateLimiter: IRateLimitService,
     private readonly eventBus: IEventPublisher,
@@ -32,9 +34,6 @@ export class ProcessAIUseCase {
       return
     }
 
-    // In the real flow, the user identity is looked up from DB directly.
-    // The identity.resolve event is fire-and-forget; this use case reads
-    // the current state from the conversation repository.
     const dbConversation = cached
       ? null
       : await this.conversationRepo.findActiveByChannelUser(input.senderId, input.channel)
@@ -45,15 +44,19 @@ export class ProcessAIUseCase {
       if (!conversation.aiEnabled || conversation.agentAssigned) return
     }
 
-    // For AI, we need the resolved userId. Since identity resolution is async,
-    // we check if the conversation has a userId. If not, we skip AI processing.
-    if (!conversation?.userId) return
+    let userId = conversation?.userId ?? null
 
-    const hasCapacity = await this.rateLimiter.checkAndIncrement(conversation.userId, input.channel)
+    if (!userId) {
+      const identity = await this.identityRepo.findByChannelUser(input.senderId, input.channel)
+      if (!identity || !identity.aiEnabled) return
+      userId = identity.userId
+    }
+
+    const hasCapacity = await this.rateLimiter.checkAndIncrement(userId, input.channel)
     if (!hasCapacity) return
 
     const aiResponse = await this.aiService.invoke({
-      userId: conversation.userId,
+      userId,
       userName: input.senderName,
       userPhone: input.senderId,
       message: input.messageText,
@@ -61,15 +64,15 @@ export class ProcessAIUseCase {
     })
 
     if (!aiResponse) {
-      await this.rateLimiter.refund(conversation.userId, input.channel)
+      await this.rateLimiter.refund(userId, input.channel)
       return
     }
 
     this.eventBus.publish('channels.whatsapp.ai-response', {
-      userId: conversation.userId,
+      userId,
       senderId: input.senderId,
       messageId: input.messageId,
-      conversationId: conversation.id,
+      conversationId: conversation?.id ?? null,
       aiResponse: aiResponse.aiResponse,
       confidence: aiResponse.confidence ?? 0,
       model: aiResponse.model ?? 'unknown',
