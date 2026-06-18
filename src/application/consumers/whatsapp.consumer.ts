@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common'
 
 import { RabbitMQService } from '../../rabbitmq/rabbitmq.service'
 import { ROUTING_KEYS, QUEUES } from '../../rabbitmq/constants/queues'
@@ -27,7 +27,7 @@ export class WhatsappConsumer implements OnModuleInit {
     private readonly sendMessageUseCase: SendMessageUseCase,
     private readonly processAIUseCase: ProcessAIUseCase,
     private readonly handleAIResponseUseCase: HandleAIResponseUseCase,
-    private readonly eventBus: IEventPublisher,
+    @Inject('IEventPublisher') private readonly eventBus: IEventPublisher,
   ) {}
 
   async onModuleInit(): Promise<void> {
