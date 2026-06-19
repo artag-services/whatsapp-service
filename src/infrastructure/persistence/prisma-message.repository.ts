@@ -13,10 +13,18 @@ export class PrismaMessageRepository implements IMessageRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: CreateWaMessageInput): Promise<WaMessageData> {
-    const record = await this.prisma.waMessage.create({
-      data: {
+    const record = await this.prisma.waMessage.upsert({
+      where: { messageId: data.messageId },
+      create: {
         id: data.id,
         messageId: data.messageId,
+        recipient: data.recipient,
+        body: data.body,
+        mediaUrl: data.mediaUrl ?? null,
+        status: 'PENDING',
+        templateUsed: data.templateUsed ?? false,
+      },
+      update: {
         recipient: data.recipient,
         body: data.body,
         mediaUrl: data.mediaUrl ?? null,

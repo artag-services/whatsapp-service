@@ -73,6 +73,9 @@ export class SendMessageUseCase {
     message: string,
     mediaUrl?: string | null,
   ): Promise<string> {
+    if (!/^\d{7,15}$/.test(recipient)) {
+      throw new Error(`Invalid phone number: "${recipient}"`)
+    }
     const record = await this.messageRepo.create({
       id: uuidv4(),
       messageId,
