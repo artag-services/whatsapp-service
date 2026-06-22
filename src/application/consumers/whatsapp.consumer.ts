@@ -8,6 +8,7 @@ import {
 } from '../../domain/services/send-message.usecase'
 import { ProcessAIUseCase, AIProcessInput } from '../../domain/services/process-ai.usecase'
 import { HandleAIResponseUseCase } from '../../domain/services/handle-ai-response.usecase'
+import { ManageConversationUseCase } from '../../domain/services/manage-conversation.usecase'
 import { IEventPublisher } from '../../domain/ports/IEventPublisher'
 import {
   MetaWebhookPayload,
@@ -27,6 +28,7 @@ export class WhatsappConsumer implements OnModuleInit {
     private readonly sendMessageUseCase: SendMessageUseCase,
     private readonly processAIUseCase: ProcessAIUseCase,
     private readonly handleAIResponseUseCase: HandleAIResponseUseCase,
+    private readonly manageConversation: ManageConversationUseCase,
     @Inject('IEventPublisher') private readonly eventBus: IEventPublisher,
   ) {}
 
@@ -166,6 +168,16 @@ export class WhatsappConsumer implements OnModuleInit {
       const timestamp = message.timestamp
 
       this.logger.log(`Incoming from ${senderId} (${senderName})`)
+
+      await this.manageConversation.handleIncoming({
+        channel: 'whatsapp',
+        channelUserId: senderId,
+        messageText,
+        messageId,
+        timestamp,
+      }).catch((err: Error) =>
+        this.logger.warn(`Conversation creation failed for ${senderId}: ${err.message}`),
+      )
 
       this.eventBus.publish(IDENTITY_RESOLVE_ROUTING_KEY, {
         channel: 'whatsapp',
