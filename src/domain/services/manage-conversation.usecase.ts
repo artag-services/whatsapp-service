@@ -151,8 +151,10 @@ export class ManageConversationUseCase {
 
     await this.conversationRepo.incrementAiMessageCount(conversationId)
 
+    const botMessageId = `bot-${conversationId}-${Date.now()}`
+
     this.eventBus.publish(DATA_EVENTS.MESSAGE_SENT, {
-      messageId: messageId ?? null,
+      messageId: botMessageId,
       conversationId,
       channel: 'whatsapp',
       channelUserId,
