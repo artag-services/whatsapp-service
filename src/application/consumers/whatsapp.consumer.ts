@@ -10,6 +10,7 @@ import { ProcessAIUseCase, AIProcessInput } from '../../domain/services/process-
 import { HandleAIResponseUseCase } from '../../domain/services/handle-ai-response.usecase'
 import { ManageConversationUseCase } from '../../domain/services/manage-conversation.usecase'
 import { IEventPublisher } from '../../domain/ports/IEventPublisher'
+import { IUserIdentityRepository } from '../../domain/ports/IUserIdentityRepository'
 import {
   MetaWebhookPayload,
   MetaWebhookValue,
@@ -29,6 +30,7 @@ export class WhatsappConsumer implements OnModuleInit {
     private readonly processAIUseCase: ProcessAIUseCase,
     private readonly handleAIResponseUseCase: HandleAIResponseUseCase,
     private readonly manageConversation: ManageConversationUseCase,
+    @Inject('IUserIdentityRepository') private readonly identityRepo: IUserIdentityRepository,
     @Inject('IEventPublisher') private readonly eventBus: IEventPublisher,
   ) {}
 
@@ -177,6 +179,14 @@ export class WhatsappConsumer implements OnModuleInit {
         timestamp,
       }).catch((err: Error) =>
         this.logger.warn(`Conversation creation failed for ${senderId}: ${err.message}`),
+      )
+
+      await this.identityRepo.ensureExists({
+        channelUserId: senderId,
+        channel: 'whatsapp',
+        displayName: senderName,
+      }).catch((err: Error) =>
+        this.logger.warn(`Identity ensure failed for ${senderId}: ${err.message}`),
       )
 
       this.eventBus.publish(IDENTITY_RESOLVE_ROUTING_KEY, {
