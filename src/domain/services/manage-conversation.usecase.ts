@@ -131,7 +131,7 @@ export class ManageConversationUseCase {
     this.publishConversationSnapshot(updated)
   }
 
-  async handleBotResponse(conversationId: string, content: string, messageId?: string): Promise<void> {
+  async handleBotResponse(conversationId: string, content: string, channelUserId: string, messageId?: string): Promise<void> {
     await this.conversationRepo.createMessage({
       conversationId,
       sender: 'BOT',
@@ -145,7 +145,8 @@ export class ManageConversationUseCase {
       messageId: messageId ?? null,
       conversationId,
       channel: 'whatsapp',
-      sender: 'BOT',
+      channelUserId,
+      recipient: channelUserId,
       content,
       timestamp: new Date().toISOString(),
     })

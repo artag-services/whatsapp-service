@@ -253,7 +253,7 @@ export class WhatsappConsumer implements OnModuleInit {
       )
 
       if (conversationId) {
-        await this.manageConversation.handleBotResponse(conversationId, aiResponse, messageId)
+        await this.manageConversation.handleBotResponse(conversationId, aiResponse, senderId, messageId)
       }
     } catch (error) {
       this.logger.error(
