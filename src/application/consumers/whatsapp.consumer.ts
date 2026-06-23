@@ -233,10 +233,11 @@ export class WhatsappConsumer implements OnModuleInit {
 
   private async handleAIResponse(payload: Record<string, unknown>): Promise<void> {
     try {
-      const { userId, senderId, messageId, aiResponse, confidence, model, processingTime } = payload as {
+      const { userId, senderId, messageId, conversationId, aiResponse, confidence, model, processingTime } = payload as {
         userId: string
         senderId: string
         messageId: string
+        conversationId: string | null
         aiResponse: string
         confidence?: number
         model?: string
@@ -250,6 +251,10 @@ export class WhatsappConsumer implements OnModuleInit {
         { userId, senderId, messageId, aiResponse, confidence, model, processingTime },
         sendFn,
       )
+
+      if (conversationId) {
+        await this.manageConversation.handleBotResponse(conversationId, aiResponse, messageId)
+      }
     } catch (error) {
       this.logger.error(
         `Error handling AI response: ${error instanceof Error ? error.message : String(error)}`,

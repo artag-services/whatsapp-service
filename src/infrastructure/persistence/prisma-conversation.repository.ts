@@ -77,6 +77,13 @@ export class PrismaConversationRepository implements IConversationRepository {
     })
   }
 
+  async incrementAiMessageCount(id: string): Promise<void> {
+    await this.prisma.conversation.update({
+      where: { id },
+      data: { aiMessageCount: { increment: 1 } },
+    })
+  }
+
   private toData(record: any): ConversationData {
     return {
       id: record.id,

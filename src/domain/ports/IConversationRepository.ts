@@ -40,4 +40,5 @@ export interface IConversationRepository {
   findActiveByChannelUser(channelUserId: string, channel: string): Promise<ConversationData | null>
   update(id: string, data: Partial<ConversationData>): Promise<ConversationData>
   createMessage(data: CreateMessageInput): Promise<void>
+  incrementAiMessageCount(id: string): Promise<void>
 }

@@ -16,6 +16,7 @@ export interface ConversationIncomingInput {
 const DATA_EVENTS = {
   CONVERSATION_CREATED: 'data.whatsapp.conversation.created',
   MESSAGE_RECEIVED: 'data.whatsapp.message.received',
+  MESSAGE_SENT: 'data.whatsapp.message.sent',
 } as const
 
 export class ManageConversationUseCase {
@@ -128,6 +129,26 @@ export class ManageConversationUseCase {
       })
     }
     this.publishConversationSnapshot(updated)
+  }
+
+  async handleBotResponse(conversationId: string, content: string, messageId?: string): Promise<void> {
+    await this.conversationRepo.createMessage({
+      conversationId,
+      sender: 'BOT',
+      content,
+      externalId: messageId ?? '',
+    })
+
+    await this.conversationRepo.incrementAiMessageCount(conversationId)
+
+    this.eventBus.publish(DATA_EVENTS.MESSAGE_SENT, {
+      messageId: messageId ?? null,
+      conversationId,
+      channel: 'whatsapp',
+      sender: 'BOT',
+      content,
+      timestamp: new Date().toISOString(),
+    })
   }
 
   private publishConversationSnapshot(conversation: {
