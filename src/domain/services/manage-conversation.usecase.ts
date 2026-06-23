@@ -49,6 +49,12 @@ export class ManageConversationUseCase {
       keywords,
     })
 
+    const userMessageMetadata = {
+      channelUserId: input.channelUserId,
+      unixTimestamp: parseInt(input.timestamp, 10),
+      mediaType: input.mediaType ?? null,
+    }
+
     let messageSaved = false
     try {
       await this.conversationRepo.createMessage({
@@ -57,11 +63,7 @@ export class ManageConversationUseCase {
         content: input.messageText,
         mediaUrl: input.mediaUrl ?? null,
         externalId: input.messageId,
-        metadata: {
-          channelUserId: input.channelUserId,
-          unixTimestamp: parseInt(input.timestamp, 10),
-          mediaType: input.mediaType ?? null,
-        },
+        metadata: userMessageMetadata,
       })
       messageSaved = true
     } catch {
@@ -103,6 +105,7 @@ export class ManageConversationUseCase {
         content: input.messageText,
         mediaUrl: input.mediaUrl ?? null,
         userId: conversation.userId,
+        metadata: userMessageMetadata,
         occurredAt: messageTimestamp,
       })
     }
@@ -132,11 +135,18 @@ export class ManageConversationUseCase {
   }
 
   async handleBotResponse(conversationId: string, content: string, channelUserId: string, messageId?: string): Promise<void> {
+    const metadata = {
+      channelUserId,
+      unixTimestamp: Date.now(),
+      source: 'ai',
+    }
+
     await this.conversationRepo.createMessage({
       conversationId,
       sender: 'BOT',
       content,
       externalId: messageId ?? '',
+      metadata,
     })
 
     await this.conversationRepo.incrementAiMessageCount(conversationId)
@@ -148,6 +158,7 @@ export class ManageConversationUseCase {
       channelUserId,
       recipient: channelUserId,
       content,
+      metadata,
       timestamp: new Date().toISOString(),
     })
   }
@@ -183,6 +194,7 @@ export class ManageConversationUseCase {
     content: string
     mediaUrl: string | null
     userId: string | null
+    metadata?: Record<string, unknown> | null
     occurredAt: Date
   }): void {
     this.eventBus.publish(DATA_EVENTS.MESSAGE_RECEIVED, {
@@ -193,6 +205,7 @@ export class ManageConversationUseCase {
       content: args.content,
       mediaUrl: args.mediaUrl,
       userId: args.userId,
+      metadata: args.metadata ?? null,
       channel: 'whatsapp',
       timestamp: args.occurredAt.toISOString(),
     })
