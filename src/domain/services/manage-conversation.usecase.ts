@@ -6,6 +6,7 @@ import { Topic } from '../value-objects/topic'
 export interface ConversationIncomingInput {
   channel: string
   channelUserId: string
+  senderName?: string
   messageText: string
   messageId: string
   timestamp: string
@@ -49,11 +50,12 @@ export class ManageConversationUseCase {
       keywords,
     })
 
-    const userMessageMetadata = {
+    const userMessageMetadata: Record<string, unknown> = {
       channelUserId: input.channelUserId,
       unixTimestamp: parseInt(input.timestamp, 10),
       mediaType: input.mediaType ?? null,
     }
+    if (input.senderName) userMessageMetadata.senderName = input.senderName
 
     let messageSaved = false
     try {
@@ -134,11 +136,12 @@ export class ManageConversationUseCase {
     this.publishConversationSnapshot(updated)
   }
 
-  async handleBotResponse(conversationId: string, content: string, channelUserId: string, messageId?: string): Promise<void> {
-    const metadata = {
+  async handleBotResponse(conversationId: string, content: string, channelUserId: string, messageId?: string, senderName?: string): Promise<void> {
+    const metadata: Record<string, unknown> = {
       channelUserId,
       unixTimestamp: Date.now(),
       source: 'ai',
+      senderName: senderName ?? null,
     }
 
     await this.conversationRepo.createMessage({

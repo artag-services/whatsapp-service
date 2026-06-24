@@ -174,6 +174,7 @@ export class WhatsappConsumer implements OnModuleInit {
       await this.manageConversation.handleIncoming({
         channel: 'whatsapp',
         channelUserId: senderId,
+        senderName,
         messageText,
         messageId,
         timestamp,
@@ -253,7 +254,7 @@ export class WhatsappConsumer implements OnModuleInit {
       )
 
       if (conversationId) {
-        await this.manageConversation.handleBotResponse(conversationId, aiResponse, senderId, messageId)
+        await this.manageConversation.handleBotResponse(conversationId, aiResponse, senderId, messageId, 'AI Assistant')
       }
     } catch (error) {
       this.logger.error(
