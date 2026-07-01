@@ -16,7 +16,7 @@ RUN pnpm prisma:generate
 RUN pnpm build
 
 
-
+ 
 EXPOSE 3001
 
 ENTRYPOINT ["bash", "/app/entrypoint.sh"]
