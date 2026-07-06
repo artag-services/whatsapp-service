@@ -22,3 +22,4 @@ EXPOSE 3001
 ENTRYPOINT ["bash", "/app/entrypoint.sh"]
 CMD ["node", "dist/main"]
 
+ 
